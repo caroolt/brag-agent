@@ -33,3 +33,58 @@ def get_current_user(email: str, token: str) -> dict:
         "username": username,
         "display_name": data.get("display_name", ""),
     }
+
+
+def _extract_pr(pr: dict) -> dict:
+    desc = (pr.get("description") or "").strip() or None
+    return {
+        "id": pr["id"],
+        "title": pr["title"],
+        "description": desc,
+        "source_branch": pr.get("source", {}).get("branch", {}).get("name", ""),
+        "dest_branch": pr.get("destination", {}).get("branch", {}).get("name", ""),
+        "merged_on": pr.get("merged_on", ""),
+        "link": pr.get("links", {}).get("html", {}).get("href", ""),
+    }
+
+
+def get_merged_prs_as_author(
+    workspace: str, repo: str, username: str,
+    start_date: str, end_date: str,
+    email: str, token: str
+) -> list:
+    auth = HTTPBasicAuth(email, token)
+    url = f"{BASE_URL}/repositories/{workspace}/{repo}/pullrequests"
+    params = {
+        "state": "MERGED",
+        "q": f'merged_on>="{start_date}" AND merged_on<="{end_date}"',
+        "pagelen": 50,
+    }
+
+    results = []
+    current_url = url
+    current_params = params
+
+    while current_url:
+        resp = _get_with_retry(current_url, auth, params=current_params)
+        if resp.status_code == 403:
+            print(f"Sem permissão para o repositório {repo}.")
+            break
+        if resp.status_code == 404:
+            print(f"Repositório {repo} não encontrado no workspace {workspace}.")
+            break
+        if resp.status_code != 200:
+            print(f"Erro {resp.status_code} em {repo}: {resp.text[:200]}")
+            break
+
+        data = resp.json()
+        for pr in data.get("values", []):
+            author = pr.get("author", {})
+            author_id = author.get("username") or author.get("nickname", "")
+            if author_id == username:
+                results.append(_extract_pr(pr))
+
+        current_url = data.get("next")
+        current_params = None
+
+    return results

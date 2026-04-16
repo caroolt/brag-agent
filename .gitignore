@@ -1,0 +1,4 @@
+.env
+.bragdoc/
+__pycache__/
+*.pyc

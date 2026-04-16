@@ -145,3 +145,69 @@ def test_get_merged_prs_as_author_404_returns_empty(mock_get, capsys):
     assert result == []
     captured = capsys.readouterr()
     assert "não encontrado" in captured.out.lower() or "repo" in captured.out
+
+
+def _make_reviewed_pr(id, title, author_username="otherdev"):
+    return {
+        "id": id,
+        "title": title,
+        "description": "desc",
+        "author": {"username": author_username, "display_name": "Other Dev"},
+        "source": {"branch": {"name": f"feature/{id}"}},
+        "destination": {"branch": {"name": "main"}},
+        "merged_on": f"2026-01-{id:02d}T10:00:00+00:00",
+        "links": {"html": {"href": f"https://bitbucket.org/ws/repo/pullrequests/{id}"}},
+    }
+
+
+@patch("services.bitbucket.requests.get")
+def test_get_reviewed_prs_returns_all_prs(mock_get):
+    mock_get.return_value = _mock_response(200, {
+        "values": [
+            _make_reviewed_pr(10, "Someone's PR"),
+            _make_reviewed_pr(11, "Another PR"),
+        ],
+        "next": None,
+    })
+    result = bitbucket.get_reviewed_prs(
+        "ws", "repo", "johndoe",
+        "2026-01-01T00:00:00+00:00", "2026-01-31T23:59:59+00:00",
+        "user@example.com", "token"
+    )
+    assert len(result) == 2
+    assert result[0]["id"] == 10
+    assert result[0]["author_display_name"] == "Other Dev"
+
+
+@patch("services.bitbucket.requests.get")
+def test_get_reviewed_prs_paginates(mock_get):
+    page1 = _mock_response(200, {
+        "values": [_make_reviewed_pr(10, "PR Ten")],
+        "next": "https://api.bitbucket.org/2.0/repositories/ws/repo/pullrequests?page=2",
+    })
+    page2 = _mock_response(200, {
+        "values": [_make_reviewed_pr(11, "PR Eleven")],
+        "next": None,
+    })
+    mock_get.side_effect = [page1, page2]
+    result = bitbucket.get_reviewed_prs(
+        "ws", "repo", "johndoe",
+        "2026-01-01T00:00:00+00:00", "2026-01-31T23:59:59+00:00",
+        "user@example.com", "token"
+    )
+    assert len(result) == 2
+    assert mock_get.call_count == 2
+
+
+@patch("services.bitbucket.requests.get")
+def test_get_reviewed_prs_uses_role_reviewer_param(mock_get):
+    mock_get.return_value = _mock_response(200, {"values": [], "next": None})
+    bitbucket.get_reviewed_prs(
+        "ws", "repo", "johndoe",
+        "2026-01-01T00:00:00+00:00", "2026-01-31T23:59:59+00:00",
+        "user@example.com", "token"
+    )
+    call_kwargs = mock_get.call_args
+    params = call_kwargs[1].get("params") or (call_kwargs[0][1] if len(call_kwargs[0]) > 1 else {})
+    # Verify role=REVIEWER is in the request params
+    assert params.get("role") == "REVIEWER"

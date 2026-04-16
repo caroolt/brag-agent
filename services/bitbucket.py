@@ -88,3 +88,47 @@ def get_merged_prs_as_author(
         current_params = None
 
     return results
+
+
+def _extract_reviewed_pr(pr: dict) -> dict:
+    data = _extract_pr(pr)
+    data["author_display_name"] = pr.get("author", {}).get("display_name", "")
+    return data
+
+
+def get_reviewed_prs(
+    workspace: str, repo: str, username: str,
+    start_date: str, end_date: str,
+    email: str, token: str
+) -> list:
+    auth = HTTPBasicAuth(email, token)
+    url = f"{BASE_URL}/repositories/{workspace}/{repo}/pullrequests"
+    params = {
+        "state": "MERGED",
+        "role": "REVIEWER",
+        "q": f'merged_on>="{start_date}" AND merged_on<="{end_date}"',
+        "pagelen": 50,
+    }
+
+    results = []
+    current_url = url
+    current_params = params
+
+    while current_url:
+        resp = _get_with_retry(current_url, auth, params=current_params)
+        if resp.status_code == 403:
+            print(f"Sem permissão para o repositório {repo}.")
+            break
+        if resp.status_code == 404:
+            print(f"Repositório {repo} não encontrado no workspace {workspace}.")
+            break
+        if resp.status_code != 200:
+            print(f"Erro {resp.status_code} em {repo}: {resp.text[:200]}")
+            break
+
+        data = resp.json()
+        results.extend(_extract_reviewed_pr(pr) for pr in data.get("values", []))
+        current_url = data.get("next")
+        current_params = None
+
+    return results

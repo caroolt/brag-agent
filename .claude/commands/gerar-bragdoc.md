@@ -1,0 +1,1 @@
+Execute python main.py gerar no terminal. Após o pyython terminar leia cada arquivo.bragdoc/raw_*.md gerado, analise os dados conforme as instruções do CLAUDE.md e gere os brag docs finais.

@@ -1,0 +1,1 @@
+Execute python main.py config no terminal de forma interativa

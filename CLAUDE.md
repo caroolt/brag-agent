@@ -7,11 +7,12 @@ Se existir, leia-o imediatamente e mantenha o contexto em memória durante
 toda a sessão. Nunca exponha BITBUCKET_TOKEN no terminal.
 
 ## Comandos disponíveis
-
+ 
 /configure, /gerar-bragdoc, /re-summarize, /status
-
-Ao receber um comando, execute o script Python correspondente e depois
-processe o output conforme as instruções abaixo.
+ 
+Os comandos estão registrados em .claude/commands/ como slash commands nativos
+do Claude Code. Ao receber um comando, execute o script Python correspondente
+e processe o output conforme as instruções abaixo.
 
 ## Como executar os comandos
 

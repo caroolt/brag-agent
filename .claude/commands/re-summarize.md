@@ -1,0 +1,1 @@
+Execute python main.py resumir no terminal. Após o pyton listar os meses disponíveis, leia todos os arquivos .bragdoc/bragdoc_[mes abreviado]_[ano].md e gere o bragdoc anual conforme as instruçoes do CLAUDE.md

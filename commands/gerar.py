@@ -84,3 +84,68 @@ def _build_raw_content(
             lines.append(_format_reviewed_pr(pr))
 
     return "\n".join(lines) + "\n"
+
+
+def run():
+    if not Path(".bragdoc/config.md").exists():
+        print("Rode /config primeiro")
+        sys.exit(1)
+
+    config = storage.read_config()
+    env = storage.read_env()
+    email = env.get("BITBUCKET_EMAIL", "")
+    token = env.get("BITBUCKET_TOKEN", "")
+    workspace = config["workspace"]
+    username = config["username"]
+    repos = config.get("repositories") or []
+    last_run = config.get("last_run_date")
+
+    now = datetime.now(tz=timezone.utc)
+
+    if last_run is None:
+        mode = "retroativo"
+        start = datetime(now.year, 1, 1, tzinfo=timezone.utc)
+    else:
+        mode = "delta"
+        start = datetime.fromisoformat(last_run)
+        if start.tzinfo is None:
+            start = start.replace(tzinfo=timezone.utc)
+
+    processed_months = []
+
+    for range_start, range_end, mes, year, month_name in _month_ranges(start, now):
+        start_iso = range_start.strftime("%Y-%m-%dT%H:%M:%S+00:00")
+        end_iso = range_end.strftime("%Y-%m-%dT%H:%M:%S+00:00")
+
+        author_prs_by_repo = {}
+        reviewed_prs_by_repo = {}
+
+        for repo in repos:
+            print(f"Buscando PRs em {repo} ({mes}/{year})...")
+            author_prs_by_repo[repo] = bitbucket.get_merged_prs_as_author(
+                workspace, repo, username, start_iso, end_iso, email, token
+            )
+            reviewed_prs_by_repo[repo] = bitbucket.get_reviewed_prs(
+                workspace, repo, username, start_iso, end_iso, email, token
+            )
+
+        content = _build_raw_content(
+            month_name, year, range_start, range_end, mode,
+            repos, author_prs_by_repo, reviewed_prs_by_repo
+        )
+
+        storage.write_raw(f"{mes}_{year}", content)
+
+        month_key = f"{mes}_{year}"
+        if month_key not in processed_months:
+            processed_months.append(month_key)
+
+    existing_months = config.get("generated_months") or []
+    for m in processed_months:
+        if m not in existing_months:
+            existing_months.append(m)
+    config["generated_months"] = existing_months
+    config["last_run_date"] = now.isoformat()
+    storage.write_config(config)
+
+    print("Dados coletados. Claude Code vai processar e gerar os brag docs agora.")

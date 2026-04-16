@@ -51,22 +51,21 @@ def run():
 
     seniority = _ask_seniority()
     workspace = input("\nBitbucket workspace (ex: minha-empresa): ").strip()
-    email = input("Seu email no Bitbucket: ").strip()
 
     user_data = None
     while user_data is None:
-        token = input("Bitbucket App Password (READ: Pull Requests + Account): ").strip()
+        token = input("Bitbucket API Token (Bearer): ").strip()
         print("Validando credenciais...")
         try:
-            user_data = bitbucket.get_current_user(email, token)
+            user_data = bitbucket.get_current_user(token)
             print(f"Autenticado como: {user_data['display_name']} ({user_data['username']})")
         except SystemExit:
-            print("Token ou email inválido. Tente novamente.")
+            print("Token inválido. Tente novamente.")
             user_data = None
 
     repositories = _ask_repositories()
 
-    storage.write_env({"BITBUCKET_EMAIL": email, "BITBUCKET_TOKEN": token})
+    storage.write_env({"BITBUCKET_TOKEN": token})
 
     config_data = {
         "username": user_data["username"],

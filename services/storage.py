@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 BASE_DIR = Path(".")
@@ -99,3 +100,45 @@ def write_env(data: dict) -> None:
     existing.update(data)
     lines = [f"{k}={v}" for k, v in existing.items()]
     env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def write_raw(identifier: str, content: str) -> None:
+    _bragdoc_dir().mkdir(exist_ok=True)
+    (_bragdoc_dir() / f"raw_{identifier}.md").write_text(content, encoding="utf-8")
+
+
+def delete_raw(identifier: str) -> None:
+    path = _bragdoc_dir() / f"raw_{identifier}.md"
+    if path.exists():
+        path.unlink()
+
+
+def list_bragdoc_months() -> list:
+    bragdoc = _bragdoc_dir()
+    if not bragdoc.exists():
+        return []
+    pattern = re.compile(r"^bragdoc_[a-z]{3}_\d{4}\.md$")
+    return sorted(
+        str(p) for p in bragdoc.iterdir()
+        if pattern.match(p.name)
+    )
+
+
+def append_to_month(mes: str, ano: int, content: str) -> None:
+    _bragdoc_dir().mkdir(exist_ok=True)
+    path = _bragdoc_dir() / f"bragdoc_{mes}_{ano}.md"
+    if path.exists():
+        existing = path.read_text(encoding="utf-8")
+        path.write_text(existing + content, encoding="utf-8")
+    else:
+        path.write_text(content, encoding="utf-8")
+
+
+def write_month(mes: str, ano: int, content: str) -> None:
+    _bragdoc_dir().mkdir(exist_ok=True)
+    (_bragdoc_dir() / f"bragdoc_{mes}_{ano}.md").write_text(content, encoding="utf-8")
+
+
+def write_annual(ano: int, content: str) -> None:
+    _bragdoc_dir().mkdir(exist_ok=True)
+    (_bragdoc_dir() / f"bragdoc_{ano}.md").write_text(content, encoding="utf-8")

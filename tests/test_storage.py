@@ -123,3 +123,60 @@ def test_read_env_parses_key_value(tmp_path):
     result = storage.read_env()
     assert result["BITBUCKET_EMAIL"] == "user@example.com"
     assert result["BITBUCKET_TOKEN"] == "mytoken"
+
+
+def test_write_raw_creates_file(tmp_path):
+    storage.write_raw("jan_2026", "# Dados Brutos — Janeiro 2026\n")
+    raw_file = tmp_path / ".bragdoc" / "raw_jan_2026.md"
+    assert raw_file.exists()
+    assert "Janeiro 2026" in raw_file.read_text(encoding="utf-8")
+
+
+def test_delete_raw_removes_file(tmp_path):
+    storage.write_raw("jan_2026", "content")
+    storage.delete_raw("jan_2026")
+    assert not (tmp_path / ".bragdoc" / "raw_jan_2026.md").exists()
+
+
+def test_delete_raw_ignores_missing_file(tmp_path):
+    storage.delete_raw("nonexistent_2026")  # should not raise
+
+
+def test_write_month_creates_file(tmp_path):
+    storage.write_month("jan", 2026, "# Brag Doc Janeiro\n")
+    f = tmp_path / ".bragdoc" / "bragdoc_jan_2026.md"
+    assert f.exists()
+    assert "Janeiro" in f.read_text(encoding="utf-8")
+
+
+def test_append_to_month_creates_if_missing(tmp_path):
+    storage.append_to_month("jan", 2026, "### Período: 15/01 - 31/01\ncontent\n")
+    f = tmp_path / ".bragdoc" / "bragdoc_jan_2026.md"
+    assert f.exists()
+    assert "15/01" in f.read_text(encoding="utf-8")
+
+
+def test_append_to_month_appends_if_existing(tmp_path):
+    storage.write_month("jan", 2026, "# Original content\n")
+    storage.append_to_month("jan", 2026, "\n### Período: 20/01 - 31/01\nnew content\n")
+    content = (tmp_path / ".bragdoc" / "bragdoc_jan_2026.md").read_text(encoding="utf-8")
+    assert "Original content" in content
+    assert "new content" in content
+
+
+def test_write_annual_creates_file(tmp_path):
+    storage.write_annual(2026, "# Brag Doc 2026\n")
+    f = tmp_path / ".bragdoc" / "bragdoc_2026.md"
+    assert f.exists()
+
+
+def test_list_bragdoc_months_returns_monthly_files(tmp_path):
+    (tmp_path / ".bragdoc").mkdir(exist_ok=True)
+    (tmp_path / ".bragdoc" / "bragdoc_jan_2026.md").write_text("x")
+    (tmp_path / ".bragdoc" / "bragdoc_fev_2026.md").write_text("x")
+    (tmp_path / ".bragdoc" / "bragdoc_2026.md").write_text("x")  # annual — should NOT appear
+    result = storage.list_bragdoc_months()
+    names = [Path(p).name for p in result]
+    assert "bragdoc_jan_2026.md" in names
+    assert "bragdoc_fev_2026.md" in names
+    assert "bragdoc_2026.md" not in names

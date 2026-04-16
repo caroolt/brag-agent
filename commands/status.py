@@ -4,7 +4,7 @@ from services import storage
 
 def run():
     if not Path(".bragdoc/config.md").exists():
-        print("Nenhuma configuração encontrada. Rode /config primeiro.")
+        print("Nenhuma configuração encontrada. Rode /configure primeiro.")
         return
 
     config = storage.read_config()

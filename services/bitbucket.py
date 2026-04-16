@@ -11,7 +11,7 @@ def _get_with_retry(url, token, email, params=None, max_retries=3):
     for attempt in range(max_retries):
         resp = requests.get(url, auth=auth, params=params)
         if resp.status_code == 401:
-            print("Token inválido. Rode /config novamente.")
+            print("Token inválido. Rode /configure novamente.")
             sys.exit(1)
         if resp.status_code == 429:
             if attempt < max_retries - 1:

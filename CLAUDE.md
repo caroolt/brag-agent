@@ -8,14 +8,14 @@ toda a sessão. Nunca exponha BITBUCKET_TOKEN no terminal.
 
 ## Comandos disponíveis
 
-/config, /gerar-bragdoc, /re-summarize, /status
+/configure, /gerar-bragdoc, /re-summarize, /status
 
 Ao receber um comando, execute o script Python correspondente e depois
 processe o output conforme as instruções abaixo.
 
 ## Como executar os comandos
 
-### /config
+### /configure
 
 Execute: python main.py config
 
@@ -130,4 +130,4 @@ Ao gerar o resumo anual:
 ## Regras de segurança
 - Nunca imprima o valor do BITBUCKET_TOKEN
 - Nunca commite .env ou .bragdoc/
-- Se o token estiver inválido, instrua o usuário a rodar /config novamente
+- Se o token estiver inválido, instrua o usuário a rodar /configure novamente

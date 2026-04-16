@@ -97,7 +97,7 @@ def _build_raw_content(
 
 def run():
     if not Path(".bragdoc/config.md").exists():
-        print("Rode /config primeiro")
+        print("Rode /configure primeiro")
         sys.exit(1)
 
     config = storage.read_config()

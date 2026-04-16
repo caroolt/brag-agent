@@ -54,18 +54,19 @@ def run():
 
     user_data = None
     while user_data is None:
-        token = input("Bitbucket API Token (Bearer): ").strip()
+        email = input("Bitbucket email (ex: seu@email.com): ").strip()
+        token = input("Bitbucket API Token: ").strip()
         print("Validando credenciais...")
         try:
-            user_data = bitbucket.get_current_user(token)
+            user_data = bitbucket.get_current_user(token, email)
             print(f"Autenticado como: {user_data['display_name']} ({user_data['username']})")
         except SystemExit:
-            print("Token inválido. Tente novamente.")
+            print("Email ou token inválido. Tente novamente.")
             user_data = None
 
     repositories = _ask_repositories()
 
-    storage.write_env({"BITBUCKET_TOKEN": token})
+    storage.write_env({"BITBUCKET_EMAIL": email, "BITBUCKET_TOKEN": token})
 
     config_data = {
         "username": user_data["username"],
@@ -84,4 +85,5 @@ def run():
     print(f"  Workspace:    {workspace}")
     print(f"  Senioridade:  {seniority}")
     print(f"  Repositórios: {', '.join(repositories) if repositories else '(nenhum)'}")
+    print(f"  Email:        {email}")
     print(f"  Token:        {'*' * 8} (salvo em .env)")

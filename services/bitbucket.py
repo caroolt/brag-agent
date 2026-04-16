@@ -1,14 +1,15 @@
 import sys
 import time
 import requests
+from requests.auth import HTTPBasicAuth
 
 BASE_URL = "https://api.bitbucket.org/2.0"
 
 
-def _get_with_retry(url, token, params=None, max_retries=3):
-    headers = {"Authorization": f"Bearer {token}"}
+def _get_with_retry(url, token, email, params=None, max_retries=3):
+    auth = HTTPBasicAuth(email, token)
     for attempt in range(max_retries):
-        resp = requests.get(url, headers=headers, params=params)
+        resp = requests.get(url, auth=auth, params=params)
         if resp.status_code == 401:
             print("Token inválido. Rode /config novamente.")
             sys.exit(1)
@@ -24,8 +25,8 @@ def _get_with_retry(url, token, params=None, max_retries=3):
     return resp
 
 
-def get_current_user(token: str) -> dict:
-    resp = _get_with_retry(f"{BASE_URL}/user", token)
+def get_current_user(token: str, email: str) -> dict:
+    resp = _get_with_retry(f"{BASE_URL}/user", token, email)
     data = resp.json()
     username = data.get("username") or data.get("nickname", "")
     return {
@@ -50,7 +51,7 @@ def _extract_pr(pr: dict) -> dict:
 def get_merged_prs_as_author(
     workspace: str, repo: str, username: str,
     start_date: str, end_date: str,
-    token: str
+    token: str, email: str
 ) -> list:
     url = f"{BASE_URL}/repositories/{workspace}/{repo}/pullrequests"
     params = {
@@ -64,7 +65,7 @@ def get_merged_prs_as_author(
     current_params = params
 
     while current_url:
-        resp = _get_with_retry(current_url, token, params=current_params)
+        resp = _get_with_retry(current_url, token, email, params=current_params)
         if resp.status_code == 403:
             print(f"Sem permissão para o repositório {repo}.")
             break
@@ -88,9 +89,9 @@ def get_merged_prs_as_author(
     return results
 
 
-def get_pr_diff(workspace, repo, pr_id, token, max_lines=500):
+def get_pr_diff(workspace, repo, pr_id, token, email, max_lines=500):
     url = f"https://api.bitbucket.org/2.0/repositories/{workspace}/{repo}/pullrequests/{pr_id}/diff"
-    response = requests.get(url, headers={"Authorization": f"Bearer {token}"})
+    response = requests.get(url, auth=HTTPBasicAuth(email, token))
     if response.status_code == 200:
         lines = response.text.splitlines()
         truncated = len(lines) > max_lines
@@ -110,7 +111,7 @@ def _extract_reviewed_pr(pr: dict) -> dict:
 def get_reviewed_prs(
     workspace: str, repo: str, username: str,
     start_date: str, end_date: str,
-    token: str
+    token: str, email: str
 ) -> list:
     url = f"{BASE_URL}/repositories/{workspace}/{repo}/pullrequests"
     params = {
@@ -125,7 +126,7 @@ def get_reviewed_prs(
     current_params = params
 
     while current_url:
-        resp = _get_with_retry(current_url, token, params=current_params)
+        resp = _get_with_retry(current_url, token, email, params=current_params)
         if resp.status_code == 403:
             print(f"Sem permissão para o repositório {repo}.")
             break

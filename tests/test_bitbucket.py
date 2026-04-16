@@ -1,6 +1,7 @@
 import sys
 import pytest
 from unittest.mock import patch, MagicMock
+from requests.auth import HTTPBasicAuth
 from services import bitbucket
 
 
@@ -18,7 +19,7 @@ def test_get_current_user_success(mock_get):
         "username": "johndoe",
         "display_name": "John Doe",
     })
-    result = bitbucket.get_current_user("app_token")
+    result = bitbucket.get_current_user("app_token", "user@example.com")
     assert result["username"] == "johndoe"
     assert result["display_name"] == "John Doe"
 
@@ -27,7 +28,7 @@ def test_get_current_user_success(mock_get):
 def test_get_current_user_401_exits(mock_get):
     mock_get.return_value = _mock_response(401)
     with pytest.raises(SystemExit) as exc_info:
-        bitbucket.get_current_user("bad_token")
+        bitbucket.get_current_user("bad_token", "user@example.com")
     assert exc_info.value.code == 1
 
 
@@ -38,7 +39,7 @@ def test_get_current_user_nickname_fallback(mock_get):
         "nickname": "johndoe",
         "display_name": "John Doe",
     })
-    result = bitbucket.get_current_user("app_token")
+    result = bitbucket.get_current_user("app_token", "user@example.com")
     assert result["username"] == "johndoe"
 
 
@@ -52,7 +53,8 @@ def test_get_with_retry_retries_on_429(mock_get):
     with patch("services.bitbucket.time.sleep") as mock_sleep:
         resp = bitbucket._get_with_retry(
             "https://api.bitbucket.org/2.0/user",
-            "token"
+            "token",
+            "user@example.com",
         )
     assert resp.status_code == 200
     assert mock_sleep.call_count == 2
@@ -63,17 +65,19 @@ def test_get_with_retry_retries_on_429(mock_get):
 def test_get_with_retry_exits_on_401(mock_get):
     mock_get.return_value = _mock_response(401)
     with pytest.raises(SystemExit) as exc_info:
-        bitbucket._get_with_retry("https://api.bitbucket.org/2.0/user", "token")
+        bitbucket._get_with_retry("https://api.bitbucket.org/2.0/user", "token", "user@example.com")
     assert exc_info.value.code == 1
 
 
 @patch("services.bitbucket.requests.get")
-def test_get_with_retry_uses_bearer_header(mock_get):
+def test_get_with_retry_uses_basic_auth(mock_get):
     mock_get.return_value = _mock_response(200, {"ok": True})
-    bitbucket._get_with_retry("https://api.bitbucket.org/2.0/user", "mytoken")
+    bitbucket._get_with_retry("https://api.bitbucket.org/2.0/user", "mytoken", "user@example.com")
     call_kwargs = mock_get.call_args
-    headers = call_kwargs[1].get("headers") or {}
-    assert headers.get("Authorization") == "Bearer mytoken"
+    auth = call_kwargs[1].get("auth")
+    assert isinstance(auth, HTTPBasicAuth)
+    assert auth.username == "user@example.com"
+    assert auth.password == "mytoken"
 
 
 def _make_pr(id, title, author_username, description=""):
@@ -101,7 +105,7 @@ def test_get_merged_prs_as_author_returns_own_prs(mock_get):
     result = bitbucket.get_merged_prs_as_author(
         "ws", "repo", "johndoe",
         "2026-01-01T00:00:00+00:00", "2026-01-31T23:59:59+00:00",
-        "token"
+        "token", "user@example.com"
     )
     assert len(result) == 1
     assert result[0]["id"] == 1
@@ -124,7 +128,7 @@ def test_get_merged_prs_as_author_paginates(mock_get):
     result = bitbucket.get_merged_prs_as_author(
         "ws", "repo", "johndoe",
         "2026-01-01T00:00:00+00:00", "2026-01-31T23:59:59+00:00",
-        "token"
+        "token", "user@example.com"
     )
     assert len(result) == 2
     assert mock_get.call_count == 2
@@ -136,7 +140,7 @@ def test_get_merged_prs_as_author_403_returns_empty(mock_get, capsys):
     result = bitbucket.get_merged_prs_as_author(
         "ws", "repo", "johndoe",
         "2026-01-01T00:00:00+00:00", "2026-01-31T23:59:59+00:00",
-        "token"
+        "token", "user@example.com"
     )
     assert result == []
     captured = capsys.readouterr()
@@ -149,7 +153,7 @@ def test_get_merged_prs_as_author_404_returns_empty(mock_get, capsys):
     result = bitbucket.get_merged_prs_as_author(
         "ws", "repo", "johndoe",
         "2026-01-01T00:00:00+00:00", "2026-01-31T23:59:59+00:00",
-        "token"
+        "token", "user@example.com"
     )
     assert result == []
     captured = capsys.readouterr()
@@ -181,7 +185,7 @@ def test_get_reviewed_prs_returns_all_prs(mock_get):
     result = bitbucket.get_reviewed_prs(
         "ws", "repo", "johndoe",
         "2026-01-01T00:00:00+00:00", "2026-01-31T23:59:59+00:00",
-        "token"
+        "token", "user@example.com"
     )
     assert len(result) == 2
     assert result[0]["id"] == 10
@@ -202,7 +206,7 @@ def test_get_reviewed_prs_paginates(mock_get):
     result = bitbucket.get_reviewed_prs(
         "ws", "repo", "johndoe",
         "2026-01-01T00:00:00+00:00", "2026-01-31T23:59:59+00:00",
-        "token"
+        "token", "user@example.com"
     )
     assert len(result) == 2
     assert mock_get.call_count == 2
@@ -214,11 +218,10 @@ def test_get_reviewed_prs_uses_role_reviewer_param(mock_get):
     bitbucket.get_reviewed_prs(
         "ws", "repo", "johndoe",
         "2026-01-01T00:00:00+00:00", "2026-01-31T23:59:59+00:00",
-        "token"
+        "token", "user@example.com"
     )
     call_kwargs = mock_get.call_args
     params = call_kwargs[1].get("params") or (call_kwargs[0][1] if len(call_kwargs[0]) > 1 else {})
-    # Verify role=REVIEWER is in the request params
     assert params.get("role") == "REVIEWER"
 
 
@@ -227,21 +230,23 @@ def test_get_pr_diff_returns_content(mock_get):
     resp = _mock_response(200)
     resp.text = "--- a/file.py\n+++ b/file.py\n@@ -1 +1 @@\n+new line"
     mock_get.return_value = resp
-    result = bitbucket.get_pr_diff("ws", "repo", 42, "token")
+    result = bitbucket.get_pr_diff("ws", "repo", 42, "token", "user@example.com")
     assert result is not None
     assert "--- a/file.py" in result
     assert "+new line" in result
 
 
 @patch("services.bitbucket.requests.get")
-def test_get_pr_diff_uses_bearer_header(mock_get):
+def test_get_pr_diff_uses_basic_auth(mock_get):
     resp = _mock_response(200)
     resp.text = "--- a/file.py\n+++ b/file.py"
     mock_get.return_value = resp
-    bitbucket.get_pr_diff("ws", "repo", 42, "mytoken")
+    bitbucket.get_pr_diff("ws", "repo", 42, "mytoken", "user@example.com")
     call_kwargs = mock_get.call_args
-    headers = call_kwargs[1].get("headers") or {}
-    assert headers.get("Authorization") == "Bearer mytoken"
+    auth = call_kwargs[1].get("auth")
+    assert isinstance(auth, HTTPBasicAuth)
+    assert auth.username == "user@example.com"
+    assert auth.password == "mytoken"
 
 
 @patch("services.bitbucket.requests.get")
@@ -249,7 +254,7 @@ def test_get_pr_diff_truncates_at_max_lines(mock_get):
     resp = _mock_response(200)
     resp.text = "\n".join([f"line {i}" for i in range(600)])
     mock_get.return_value = resp
-    result = bitbucket.get_pr_diff("ws", "repo", 42, "token")
+    result = bitbucket.get_pr_diff("ws", "repo", 42, "token", "user@example.com")
     assert "diff truncado em 500 linhas" in result
     content_lines = result.splitlines()
     assert content_lines[499] == "line 499"
@@ -259,7 +264,7 @@ def test_get_pr_diff_truncates_at_max_lines(mock_get):
 @patch("services.bitbucket.requests.get")
 def test_get_pr_diff_returns_none_on_error(mock_get):
     mock_get.return_value = _mock_response(404)
-    result = bitbucket.get_pr_diff("ws", "repo", 42, "token")
+    result = bitbucket.get_pr_diff("ws", "repo", 42, "token", "user@example.com")
     assert result is None
 
 
@@ -268,6 +273,6 @@ def test_get_pr_diff_no_truncation_when_under_limit(mock_get):
     resp = _mock_response(200)
     resp.text = "\n".join([f"line {i}" for i in range(10)])
     mock_get.return_value = resp
-    result = bitbucket.get_pr_diff("ws", "repo", 42, "token")
+    result = bitbucket.get_pr_diff("ws", "repo", 42, "token", "user@example.com")
     assert "truncado" not in result
     assert result.count("\n") == 9

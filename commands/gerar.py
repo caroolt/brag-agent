@@ -103,6 +103,7 @@ def run():
     config = storage.read_config()
     env = storage.read_env()
     token = env.get("BITBUCKET_TOKEN", "")
+    email = env.get("BITBUCKET_EMAIL", "")
     workspace = config["workspace"]
     username = config["username"]
     repos = config.get("repositories") or []
@@ -131,16 +132,16 @@ def run():
         for repo in repos:
             print(f"Buscando PRs em {repo} ({mes}/{year})...")
             author_prs = bitbucket.get_merged_prs_as_author(
-                workspace, repo, username, start_iso, end_iso, token
+                workspace, repo, username, start_iso, end_iso, token, email
             )
             for pr in author_prs:
                 if _is_description_insufficient(pr.get("description")):
-                    diff = bitbucket.get_pr_diff(workspace, repo, pr["id"], token)
+                    diff = bitbucket.get_pr_diff(workspace, repo, pr["id"], token, email)
                     if diff:
                         pr["diff"] = diff
             author_prs_by_repo[repo] = author_prs
             reviewed_prs_by_repo[repo] = bitbucket.get_reviewed_prs(
-                workspace, repo, username, start_iso, end_iso, token
+                workspace, repo, username, start_iso, end_iso, token, email
             )
 
         content = _build_raw_content(

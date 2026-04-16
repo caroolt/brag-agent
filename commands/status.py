@@ -8,9 +8,11 @@ def run():
         return
 
     config = storage.read_config()
+    env = storage.read_env()
 
     print("=== BragDoc Agent — Status ===\n")
     print(f"Usuário:       {config.get('display_name', '?')} ({config.get('username', '?')})")
+    print(f"Email:         {env.get('BITBUCKET_EMAIL', '(não configurado)')}")
     print(f"Workspace:     {config.get('workspace', '?')}")
     print(f"Senioridade:   {config.get('seniority', '?')}")
 

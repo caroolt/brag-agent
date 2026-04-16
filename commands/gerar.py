@@ -30,14 +30,23 @@ def _month_ranges(start: datetime, end: datetime):
         current = next_month
 
 
+def _is_description_insufficient(description) -> bool:
+    if description is None:
+        return True
+    return len(str(description).strip()) < 20
+
+
 def _format_author_pr(pr: dict) -> str:
-    return (
+    text = (
         f"#### PR #{pr['id']} — {pr['title']}\n"
         f"- Branch: {pr['source_branch']} → {pr['dest_branch']}\n"
         f"- Merged em: {pr['merged_on']}\n"
         f"- Link: {pr['link']}\n"
         f"- Descrição: {pr['description'] or 'sem descrição'}"
     )
+    if pr.get("diff"):
+        text += f"\n- Diff:\n{pr['diff']}"
+    return text
 
 
 def _format_reviewed_pr(pr: dict) -> str:
@@ -122,9 +131,15 @@ def run():
 
         for repo in repos:
             print(f"Buscando PRs em {repo} ({mes}/{year})...")
-            author_prs_by_repo[repo] = bitbucket.get_merged_prs_as_author(
+            author_prs = bitbucket.get_merged_prs_as_author(
                 workspace, repo, username, start_iso, end_iso, email, token
             )
+            for pr in author_prs:
+                if _is_description_insufficient(pr.get("description")):
+                    diff = bitbucket.get_pr_diff(workspace, repo, pr["id"], email, token)
+                    if diff:
+                        pr["diff"] = diff
+            author_prs_by_repo[repo] = author_prs
             reviewed_prs_by_repo[repo] = bitbucket.get_reviewed_prs(
                 workspace, repo, username, start_iso, end_iso, email, token
             )

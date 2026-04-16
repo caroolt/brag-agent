@@ -1,6 +1,6 @@
 import pytest
 from datetime import datetime, timezone
-from commands.gerar import _month_ranges, _build_raw_content
+from commands.gerar import _month_ranges, _build_raw_content, _is_description_insufficient, _format_author_pr
 
 MONTH_ABBR = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
 
@@ -105,3 +105,58 @@ def test_build_raw_content_shows_no_description():
         ["repo-one"], author_prs, {"repo-one": []}
     )
     assert "sem descrição" in content
+
+
+def test_is_description_insufficient_none():
+    assert _is_description_insufficient(None) is True
+
+
+def test_is_description_insufficient_empty():
+    assert _is_description_insufficient("") is True
+
+
+def test_is_description_insufficient_short():
+    assert _is_description_insufficient("fix typo") is True  # 8 chars < 20
+
+
+def test_is_description_insufficient_border():
+    assert _is_description_insufficient("x" * 19) is True
+    assert _is_description_insufficient("x" * 20) is False
+
+
+def test_is_description_insufficient_sufficient():
+    assert _is_description_insufficient("This is a long enough description for a PR") is False
+
+
+def _make_author_pr(description=None, diff=None):
+    pr = {
+        "id": 1, "title": "Fix bug",
+        "description": description,
+        "source_branch": "fix/bug", "dest_branch": "main",
+        "merged_on": "2026-01-10T10:00:00+00:00",
+        "link": "https://bitbucket.org/ws/repo/pullrequests/1",
+    }
+    if diff is not None:
+        pr["diff"] = diff
+    return pr
+
+
+def test_format_author_pr_includes_diff_when_present():
+    pr = _make_author_pr(description=None, diff="--- a/file.py\n+++ b/file.py\n+new line")
+    result = _format_author_pr(pr)
+    assert "- Diff:" in result
+    assert "--- a/file.py" in result
+    assert "+new line" in result
+
+
+def test_format_author_pr_no_diff_section_when_absent():
+    pr = _make_author_pr(description="This is a sufficient description for the PR")
+    result = _format_author_pr(pr)
+    assert "- Diff:" not in result
+
+
+def test_format_author_pr_no_diff_section_when_none():
+    pr = _make_author_pr(description=None)  # no "diff" key at all
+    result = _format_author_pr(pr)
+    assert "- Diff:" not in result
+    assert "sem descrição" in result

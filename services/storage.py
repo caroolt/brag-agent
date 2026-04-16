@@ -77,3 +77,25 @@ def write_config(data: dict) -> None:
             lines.append(f"{key}: {value}")
 
     (_bragdoc_dir() / "config.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def read_env() -> dict:
+    env_path = BASE_DIR / ".env"
+    if not env_path.exists():
+        return {}
+    result = {}
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        result[key.strip()] = value.strip()
+    return result
+
+
+def write_env(data: dict) -> None:
+    env_path = BASE_DIR / ".env"
+    existing = read_env()
+    existing.update(data)
+    lines = [f"{k}={v}" for k, v in existing.items()]
+    env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")

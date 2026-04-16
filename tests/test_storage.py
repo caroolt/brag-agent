@@ -84,3 +84,42 @@ def test_write_config_creates_bragdoc_dir(tmp_path):
     }
     storage.write_config(data)
     assert (tmp_path / ".bragdoc" / "config.md").exists()
+
+
+def test_read_env_returns_empty_when_missing(tmp_path):
+    result = storage.read_env()
+    assert result == {}
+
+
+def test_write_env_creates_file(tmp_path):
+    storage.write_env({"BITBUCKET_EMAIL": "user@example.com", "BITBUCKET_TOKEN": "secret"})
+    env_file = tmp_path / ".env"
+    assert env_file.exists()
+    content = env_file.read_text(encoding="utf-8")
+    assert "BITBUCKET_EMAIL=user@example.com" in content
+    assert "BITBUCKET_TOKEN=secret" in content
+
+
+def test_write_env_merges_without_overwriting_existing(tmp_path):
+    (tmp_path / ".env").write_text("EXISTING_KEY=keep_me\n", encoding="utf-8")
+    storage.write_env({"BITBUCKET_EMAIL": "user@example.com"})
+    result = storage.read_env()
+    assert result["EXISTING_KEY"] == "keep_me"
+    assert result["BITBUCKET_EMAIL"] == "user@example.com"
+
+
+def test_write_env_updates_existing_key(tmp_path):
+    (tmp_path / ".env").write_text("BITBUCKET_TOKEN=old_token\n", encoding="utf-8")
+    storage.write_env({"BITBUCKET_TOKEN": "new_token"})
+    result = storage.read_env()
+    assert result["BITBUCKET_TOKEN"] == "new_token"
+
+
+def test_read_env_parses_key_value(tmp_path):
+    (tmp_path / ".env").write_text(
+        "BITBUCKET_EMAIL=user@example.com\nBITBUCKET_TOKEN=mytoken\n",
+        encoding="utf-8"
+    )
+    result = storage.read_env()
+    assert result["BITBUCKET_EMAIL"] == "user@example.com"
+    assert result["BITBUCKET_TOKEN"] == "mytoken"

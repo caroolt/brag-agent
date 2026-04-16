@@ -211,3 +211,43 @@ def test_get_reviewed_prs_uses_role_reviewer_param(mock_get):
     params = call_kwargs[1].get("params") or (call_kwargs[0][1] if len(call_kwargs[0]) > 1 else {})
     # Verify role=REVIEWER is in the request params
     assert params.get("role") == "REVIEWER"
+
+
+@patch("services.bitbucket.requests.get")
+def test_get_pr_diff_returns_content(mock_get):
+    resp = _mock_response(200)
+    resp.text = "--- a/file.py\n+++ b/file.py\n@@ -1 +1 @@\n+new line"
+    mock_get.return_value = resp
+    result = bitbucket.get_pr_diff("ws", "repo", 42, "user@example.com", "token")
+    assert result is not None
+    assert "--- a/file.py" in result
+    assert "+new line" in result
+
+
+@patch("services.bitbucket.requests.get")
+def test_get_pr_diff_truncates_at_max_lines(mock_get):
+    resp = _mock_response(200)
+    resp.text = "\n".join([f"line {i}" for i in range(600)])
+    mock_get.return_value = resp
+    result = bitbucket.get_pr_diff("ws", "repo", 42, "user@example.com", "token")
+    assert "diff truncado em 500 linhas" in result
+    content_lines = result.splitlines()
+    assert content_lines[499] == "line 499"
+    assert "line 500" not in result
+
+
+@patch("services.bitbucket.requests.get")
+def test_get_pr_diff_returns_none_on_error(mock_get):
+    mock_get.return_value = _mock_response(404)
+    result = bitbucket.get_pr_diff("ws", "repo", 42, "user@example.com", "token")
+    assert result is None
+
+
+@patch("services.bitbucket.requests.get")
+def test_get_pr_diff_no_truncation_when_under_limit(mock_get):
+    resp = _mock_response(200)
+    resp.text = "\n".join([f"line {i}" for i in range(10)])
+    mock_get.return_value = resp
+    result = bitbucket.get_pr_diff("ws", "repo", 42, "user@example.com", "token")
+    assert "truncado" not in result
+    assert result.count("\n") == 9

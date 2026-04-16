@@ -90,6 +90,19 @@ def get_merged_prs_as_author(
     return results
 
 
+def get_pr_diff(workspace, repo, pr_id, email, token, max_lines=500):
+    url = f"https://api.bitbucket.org/2.0/repositories/{workspace}/{repo}/pullrequests/{pr_id}/diff"
+    response = requests.get(url, auth=HTTPBasicAuth(email, token))
+    if response.status_code == 200:
+        lines = response.text.splitlines()
+        truncated = len(lines) > max_lines
+        diff_content = "\n".join(lines[:max_lines])
+        if truncated:
+            diff_content += f"\n... [diff truncado em {max_lines} linhas]"
+        return diff_content
+    return None
+
+
 def _extract_reviewed_pr(pr: dict) -> dict:
     data = _extract_pr(pr)
     data["author_display_name"] = pr.get("author", {}).get("display_name", "")

@@ -97,20 +97,27 @@ def read_env() -> dict:
 
 
 def write_env(data: dict) -> None:
+    import os
     env_path = BASE_DIR / ".env"
     existing = read_env()
     existing.update(data)
     lines = [f"{k}={v}" for k, v in existing.items()]
     env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    try:
+        os.chmod(env_path, 0o600)
+    except (AttributeError, NotImplementedError):
+        pass
 
 
 def write_raw(identifier: str, content: str) -> None:
     _bragdoc_dir().mkdir(exist_ok=True)
-    (_bragdoc_dir() / f"raw_{identifier}.md").write_text(content, encoding="utf-8")
+    safe_id = Path(identifier).name
+    (_bragdoc_dir() / f"raw_{safe_id}.md").write_text(content, encoding="utf-8")
 
 
 def delete_raw(identifier: str) -> None:
-    path = _bragdoc_dir() / f"raw_{identifier}.md"
+    safe_id = Path(identifier).name
+    path = _bragdoc_dir() / f"raw_{safe_id}.md"
     if path.exists():
         path.unlink()
 

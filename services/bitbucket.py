@@ -9,7 +9,7 @@ BASE_URL = "https://api.bitbucket.org/2.0"
 def _get_with_retry(url, token, email, params=None, max_retries=3):
     auth = HTTPBasicAuth(email, token)
     for attempt in range(max_retries):
-        resp = requests.get(url, auth=auth, params=params)
+        resp = requests.get(url, auth=auth, params=params, timeout=30)
         if resp.status_code == 401:
             print("Token inválido. Rode /configure novamente.")
             sys.exit(1)
@@ -95,7 +95,7 @@ def get_merged_prs_as_author(
 
 def get_pr_diff(workspace, repo, pr_id, token, email, max_lines=500):
     url = f"https://api.bitbucket.org/2.0/repositories/{workspace}/{repo}/pullrequests/{pr_id}/diff"
-    response = requests.get(url, auth=HTTPBasicAuth(email, token))
+    response = requests.get(url, auth=HTTPBasicAuth(email, token), timeout=30)
     if response.status_code == 200:
         lines = response.text.splitlines()
         truncated = len(lines) > max_lines

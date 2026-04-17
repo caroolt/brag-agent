@@ -49,12 +49,13 @@ def read_config() -> dict:
                 data[key] = value
                 current_list_key = None
 
+    data.setdefault("processed_context", [])
     return data
 
 
 _CONFIG_KEY_ORDER = [
     "username", "display_name", "workspace", "seniority",
-    "repositories", "last_run_date", "generated_months",
+    "repositories", "last_run_date", "generated_months", "processed_context",
 ]
 
 

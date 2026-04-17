@@ -55,6 +55,7 @@ def _save(seniority, area, workspace, token, email, repos_raw):
         "repositories": repos,
         "last_run_date": None,
         "generated_months": [],
+        "processed_context": [],
     }
     storage.write_config(config_data)
     _ensure_gitignore()

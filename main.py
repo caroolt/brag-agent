@@ -7,6 +7,7 @@ def main():
         "gerar": "commands.gerar",
         "resumir": "commands.resumir",
         "status": "commands.status",
+        "registrar": "commands.registrar",
     }
 
     if len(sys.argv) < 2 or sys.argv[1] not in commands:

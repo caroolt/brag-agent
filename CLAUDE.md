@@ -8,7 +8,7 @@ toda a sessão. Nunca exponha BITBUCKET_TOKEN no terminal.
 
 ## Comandos disponíveis
  
-/configure, /gerar-bragdoc, /re-summarize, /status
+/configure, /gerar-bragdoc, /re-summarize, /status, /registrar-contexto
  
 Os comandos estão registrados em .claude/commands/ como slash commands nativos
 do Claude Code. Ao receber um comando, execute o script Python correspondente
@@ -32,12 +32,20 @@ O Python vai buscar os PRs do Bitbucket e salvar os dados brutos em
 
 Após o Python terminar, para CADA arquivo raw gerado:
 1. Leia o arquivo raw correspondente
-2. Leia o config.md para pegar seniority e display_name
-3. Analise os dados conforme as instruções de análise abaixo
-4. Gere o brag document final e salve em .bragdoc/bragdoc_[mes]_[ano].md
-5. Delete o arquivo raw após gerar o brag doc final
-6. Se for run subsequente (não primeira run), APPENDA no arquivo do mês
-   existente com header "### Período: DD/MM - DD/MM" ao invés de recriar
+2. Leia o config.md para pegar seniority, display_name e processed_context
+3. Liste todos os arquivos em .bragdoc/context/ (se a pasta existir)
+4. Para cada arquivo de contexto, ignore os que já estão em processed_context
+5. Para cada arquivo de contexto não processado, leia o conteúdo e determine
+   a qual mês ele pertence (usando o campo "Date:" + "Recorded at:" do arquivo)
+6. Analise os dados do raw conforme as instruções de análise abaixo
+7. Incorpore as entradas de contexto do mês correspondente na seção
+   "Beyond the Code" (conforme formato nas instruções de análise)
+8. Gere o brag document final e salve em .bragdoc/bragdoc_[mes]_[ano].md
+9. Adicione o filename de cada entrada de contexto incorporada ao campo
+   processed_context no config.md
+10. Delete o arquivo raw após gerar o brag doc final
+11. Se for run subsequente (não primeira run), APPENDA no arquivo do mês
+    existente com header "### Período: DD/MM - DD/MM" ao invés de recriar
 
 Ao final, chame /re-summarize automaticamente para atualizar o anual.
 
@@ -56,6 +64,15 @@ Execute: python main.py status
 
 O Python imprime as informações do config. Apenas confirme e formate
 a saída se necessário.
+
+### /registrar-contexto
+
+Execute: python main.py registrar
+
+O Python salva a entrada em .bragdoc/context/[timestamp]_[tipo].md.
+Entradas de contexto são independentes do last_run_date — uma entrada
+registrada hoje sobre algo que aconteceu ontem será incorporada
+normalmente ao brag doc do mês correspondente.
 
 ## Instruções de análise — brag doc mensal
 
@@ -169,6 +186,37 @@ Ao gerar o resumo anual:
 
 ## Highlights
 [3-5 bullets with the biggest impacts, specific and technical]
+```
+
+**Incorporando entradas de contexto:**
+
+Controle de duplicação:
+- Leia o campo processed_context do config.md — é uma lista de filenames
+  já incorporados em brag docs anteriores
+- Ao processar entradas de contexto, ignore qualquer arquivo cujo filename
+  já esteja em processed_context
+- Após incorporar uma entrada ao brag doc, adicione seu filename a
+  processed_context no config.md
+- Esse controle é independente do last_run_date — não use last_run_date
+  para filtrar entradas de contexto
+
+Qual mês recebe a entrada:
+- Interprete o campo "Date:" de cada arquivo de contexto para determinar
+  em qual mês a entrada pertence
+- "Date:" é escrito em linguagem natural pelo usuário (ex: "hoje", "10/04",
+  "semana passada") — interprete em relação ao campo "Recorded at:" do
+  mesmo arquivo para resolver datas relativas
+- Se a data for ambígua, use o mês do "Recorded at:" como fallback
+
+Formato da seção de contexto no brag doc mensal — adicione após Key Deliveries:
+
+```
+## Beyond the Code
+
+### [contribution_type] — [resumo curto em até 8 palavras]
+[2-4 sentences: o que foi discutido/decidido/influenciado → qual foi o
+impacto ou direção resultante. Linguagem técnica e específica, sem floreios.]
+References: [se houver, caso contrário omita a linha]
 ```
 
 ## Regras de segurança

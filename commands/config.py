@@ -1,4 +1,5 @@
 import sys
+import argparse
 from pathlib import Path
 from services import storage, bitbucket
 
@@ -8,6 +9,15 @@ SENIORITY_OPTIONS = {
     "3": "Senior",
     "4": "Staff",
     "5": "Principal",
+}
+
+AREA_OPTIONS = {
+    "1": "Frontend",
+    "2": "Backend",
+    "3": "Fullstack",
+    "4": "Mobile",
+    "5": "Data/ML",
+    "6": "DevOps/Infra",
 }
 
 
@@ -24,56 +34,25 @@ def _ensure_gitignore():
                 f.write(f"{entry}\n")
 
 
-def _ask_seniority() -> str:
-    print("\nNível de senioridade:")
-    for key, label in SENIORITY_OPTIONS.items():
-        print(f"  {key}. {label}")
-    while True:
-        choice = input("Escolha (1-5): ").strip()
-        if choice in SENIORITY_OPTIONS:
-            return SENIORITY_OPTIONS[choice]
-        print("Opção inválida. Digite um número de 1 a 5.")
-
-
-def _ask_repositories() -> list:
-    print("\nRepositórios a monitorar (um por linha, linha vazia para encerrar):")
-    repos = []
-    while True:
-        repo = input("  Repositório: ").strip()
-        if not repo:
-            break
-        repos.append(repo)
-    return repos
-
-
-def run():
-    print("=== BragDoc Agent — Configuração ===\n")
-
-    seniority = _ask_seniority()
-    workspace = input("\nBitbucket workspace (ex: minha-empresa): ").strip()
+def _save(seniority, area, workspace, token, email, repos_raw):
+    repos = [r.strip() for r in repos_raw.split(",") if r.strip()]
 
     user_data = None
-    while user_data is None:
-        email = input("Bitbucket email (ex: seu@email.com): ").strip()
-        token = input("Bitbucket API Token: ").strip()
-        print("Validando credenciais...")
-        try:
-            user_data = bitbucket.get_current_user(token, email)
-            print(f"Autenticado como: {user_data['display_name']} ({user_data['username']})")
-        except SystemExit:
-            print("Email ou token inválido. Tente novamente.")
-            user_data = None
+    try:
+        user_data = bitbucket.get_current_user(token, email)
+    except SystemExit:
+        print("Token inválido. Rode /configure novamente.")
+        sys.exit(1)
 
-    repositories = _ask_repositories()
-
-    storage.write_env({"BITBUCKET_EMAIL": email, "BITBUCKET_TOKEN": token})
+    storage.write_env({"BITBUCKET_TOKEN": token, "BITBUCKET_EMAIL": email})
 
     config_data = {
         "username": user_data["username"],
         "display_name": user_data["display_name"],
         "workspace": workspace,
         "seniority": seniority,
-        "repositories": repositories,
+        "area": area,
+        "repositories": repos,
         "last_run_date": None,
         "generated_months": [],
     }
@@ -84,6 +63,58 @@ def run():
     print(f"  Usuário:      {user_data['display_name']} ({user_data['username']})")
     print(f"  Workspace:    {workspace}")
     print(f"  Senioridade:  {seniority}")
-    print(f"  Repositórios: {', '.join(repositories) if repositories else '(nenhum)'}")
-    print(f"  Email:        {email}")
+    print(f"  Área:         {area}")
+    print(f"  Repositórios: {', '.join(repos) if repos else '(nenhum)'}")
     print(f"  Token:        {'*' * 8} (salvo em .env)")
+
+
+def run():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--seniority", default=None)
+    parser.add_argument("--area", default=None)
+    parser.add_argument("--workspace", default=None)
+    parser.add_argument("--token", default=None)
+    parser.add_argument("--email", default=None)
+    parser.add_argument("--repos", default=None)
+    args, _ = parser.parse_known_args()
+
+    # modo CLI — chamado pelo Claude Code com argumentos
+    if all([args.seniority, args.area, args.workspace, args.token, args.email, args.repos]):
+        _save(args.seniority, args.area, args.workspace, args.token, args.email, args.repos)
+        return
+
+    # modo interativo — fallback para rodar direto no terminal
+    print("=== BragDoc Agent — Configuração ===\n")
+    print("Nível de senioridade:")
+    for key, label in SENIORITY_OPTIONS.items():
+        print(f"  {key}. {label}")
+    while True:
+        choice = input("Escolha (1-5): ").strip()
+        if choice in SENIORITY_OPTIONS:
+            seniority = SENIORITY_OPTIONS[choice]
+            break
+        print("Opção inválida.")
+
+    print("\nÁrea de atuação:")
+    for key, label in AREA_OPTIONS.items():
+        print(f"  {key}. {label}")
+    while True:
+        choice = input("Escolha (1-6): ").strip()
+        if choice in AREA_OPTIONS:
+            area = AREA_OPTIONS[choice]
+            break
+        print("Opção inválida.")
+
+    workspace = input("\nBitbucket workspace: ").strip()
+    token = input("Bitbucket API Token: ").strip()
+    email = input("Email do Bitbucket: ").strip()
+
+    print("\nRepositórios a monitorar (um por linha, linha vazia para encerrar):")
+    repos = []
+    while True:
+        repo = input("  Repositório: ").strip()
+        if not repo:
+            break
+        repos.append(repo)
+
+    _save(seniority, area, workspace, token, email, ",".join(repos))

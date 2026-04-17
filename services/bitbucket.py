@@ -54,9 +54,10 @@ def get_merged_prs_as_author(
     token: str, email: str
 ) -> list:
     url = f"{BASE_URL}/repositories/{workspace}/{repo}/pullrequests"
+    # merged_on is not filterable; use updated_on as proxy and filter client-side
     params = {
         "state": "MERGED",
-        "q": f'merged_on>="{start_date}" AND merged_on<="{end_date}"',
+        "q": f'updated_on>="{start_date}" AND updated_on<="{end_date}"',
         "pagelen": 50,
     }
 
@@ -78,6 +79,9 @@ def get_merged_prs_as_author(
 
         data = resp.json()
         for pr in data.get("values", []):
+            merged_on = pr.get("merged_on", "") or ""
+            if merged_on and not (start_date <= merged_on[:10] <= end_date[:10]):
+                continue
             author = pr.get("author", {})
             author_id = author.get("username") or author.get("nickname", "")
             if author_id == username:
@@ -117,7 +121,7 @@ def get_reviewed_prs(
     params = {
         "state": "MERGED",
         "role": "REVIEWER",
-        "q": f'merged_on>="{start_date}" AND merged_on<="{end_date}"',
+        "q": f'updated_on>="{start_date}" AND updated_on<="{end_date}"',
         "pagelen": 50,
     }
 

@@ -113,7 +113,7 @@ def run():
 
     if last_run is None:
         mode = "retroativo"
-        start = datetime(now.year, 1, 1, tzinfo=timezone.utc)
+        start = datetime(2024, 9, 1, tzinfo=timezone.utc)
     else:
         mode = "delta"
         start = datetime.fromisoformat(last_run)

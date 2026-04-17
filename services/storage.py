@@ -28,6 +28,8 @@ def read_config() -> dict:
                 continue
         if line.startswith("  - "):
             if current_list_key is not None:
+                if not isinstance(data[current_list_key], list):
+                    data[current_list_key] = []
                 data[current_list_key].append(line[4:].strip())
             continue
         if ":" in line:
@@ -41,7 +43,7 @@ def read_config() -> dict:
                 data[key] = []
                 current_list_key = key
             elif value == "":
-                data[key] = []
+                data[key] = None
                 current_list_key = key
             else:
                 data[key] = value

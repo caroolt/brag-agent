@@ -54,7 +54,6 @@ def get_merged_prs_as_author(
     token: str, email: str
 ) -> list:
     url = f"{BASE_URL}/repositories/{workspace}/{repo}/pullrequests"
-    # merged_on is not filterable; use updated_on as proxy and filter client-side
     params = {
         "state": "MERGED",
         "q": f'updated_on>="{start_date}" AND updated_on<="{end_date}"',
